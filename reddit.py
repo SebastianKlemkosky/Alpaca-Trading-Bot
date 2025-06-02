@@ -3,10 +3,9 @@
 import config
 import praw
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from stocks_utils import load_tickers
 
-# Regex for uppercase words 2–5 letters (stock tickers)
 TICKER_REGEX = re.compile(r"\b[A-Z]{2,5}\b")
 
 def get_reddit_client():
@@ -22,34 +21,43 @@ def extract_valid_tickers_from_text(text, valid_tickers):
     found = TICKER_REGEX.findall(text.upper())
     return list({t for t in found if t in valid_tickers and t != "IPO"})
 
-
 def fetch_stock_mentions(limit_per_sub=25):
     reddit = get_reddit_client()
     results = []
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # 📅 Rolling 24-hour window
+    time_threshold = datetime.utcnow() - timedelta(hours=24)
 
     for subreddit_name in config.SUBREDDITS:
         subreddit = reddit.subreddit(subreddit_name)
         posts = subreddit.hot(limit=limit_per_sub)
+        sub_results = []
 
         for post in posts:
             if post.over_18:
                 continue
 
             post_time = datetime.utcfromtimestamp(post.created_utc)
-            if post_time < today_start:
+            if post_time < time_threshold:
                 continue
 
             full_text = f"{post.title}\n\n{post.selftext or ''}".strip()
 
-            results.append({
+            # 📥 Extract top 10 comments
+            post.comments.replace_more(limit=0)
+            comments = [c.body.strip() for c in post.comments[:10] if hasattr(c, "body")]
+
+            sub_results.append({
                 "title": post.title.strip(),
                 "text": full_text,
-                "summary": "",  # Leave blank for now — GPT can populate this
+                "summary": "",  # GPT-generated summary can go here
                 "subreddit": subreddit_name,
                 "url": f"https://www.reddit.com{post.permalink}",
-                "created_utc": post_time.isoformat() + "Z"
+                "created_utc": post_time.isoformat() + "Z",
+                "comments": comments
             })
 
-    return results
+        print(f"✅ r/{subreddit_name}: {len(sub_results)} posts in past 24h")
+        results.extend(sub_results)
 
+    return results
