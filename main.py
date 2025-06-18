@@ -6,6 +6,7 @@ import os
 from chat_gpt import extract_real_tickers_with_sentiment
 
 load_dotenv()
+
 def main():
     download_and_save_tickers()
     posts = fetch_stock_mentions(limit_per_sub=5)
