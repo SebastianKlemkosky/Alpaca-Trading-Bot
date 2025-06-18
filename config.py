@@ -23,7 +23,32 @@ SUBREDDITS = [
 ]
 
 GPT_TEMPLATE = """
+You are an investment analyst reviewing Reddit posts about stocks.
 
+Given the post content (title, body, and comments), identify:
+1. Which tickers clearly refer to real companies (not slang or acronyms).
+2. For each real stock, provide your opinion of the sentiment based on the content.
 
+Respond in JSON format like this:
+{{
+  "TICKER": {{
+    "company": "Company Name",
+    "sentiment": "strongly positive"  // or strongly negative, somewhat positive, neutral, etc.
+  }},
+  ...
+}}
 
+Only include tickers clearly used in a stock-related context.
+
+Reddit Post:
+---
+Title: {title}
+
+Body:
+{text}
+
+Top Comments:
+{comments}
+---
 """
+
